@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Infinite Scroll Study</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --text: #202124;
+      --muted: #5f6368;
+      --line: #dadce0;
+      --blue: #1a73e8;
+      --blue-dark: #1558b0;
+      --green: #188038;
+      --red: #b3261e;
+      --yellow: #fbbc04;
+      --shadow: 0 2px 8px rgba(60, 64, 67, .10);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 9px 13px;
+      cursor: pointer;
+      font-weight: 700;
+      background: #f1f3f4;
+      color: #202124;
+    }
+
+    button:hover {
+      border-color: #dadce0;
+      box-shadow: 0 1px 3px rgba(60, 64, 67, .18);
+    }
+
+    button.primary {
+      background: var(--blue);
+      color: white;
+    }
+
+    button.primary:hover {
+      background: var(--blue-dark);
+    }
+
+    button.success {
+      background: var(--green);
+      color: white;
+    }
+
+    button.danger {
+      background: var(--red);
+      color: white;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 11px;
+      background: white;
+    }
+
+    textarea {
+      min-height: 72px;
+      resize: vertical;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 355px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      background: white;
+      border-right: 1px solid var(--line);
+      padding: 16px;
+      z-index: 20;
+    }
+
+    .main {
+      min-width: 0;
+      background: white;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.2;
+    }
+
+    .brand p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+      margin: 8px 0 16px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 14px;
+      background: white;
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .task-box {
+      background: #f8fbff;
+      border: 1px solid #d2e3fc;
+      border-radius: 12px;
+      padding: 12px;
+      line-height: 1.45;
+    }
+
+    .task-box h3 {
+      margin: 0 0 6px;
+      font-size: 15px;
+    }
+
+    .task-box p {
+      margin: 5px 0;
+      color: #3c4043;
+      font-size: 14px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: #f1f3f4;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #9aa0a6;
+    }
+
+    .status-dot.running {
+      background: var(--green);
+    }
+
+    .status-dot.saved {
+      background: var(--blue);
+    }
+
+    .top-search-area {
+      border-bottom: 1px solid #ebedef;
+      background: white;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .search-row {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 20px 28px 10px;
+    }
+
+    .google-word {
+      font-size: 34px;
+      letter-spacing: -2px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .g-blue {
+      color: #4285f4;
+    }
+
+    .g-red {
+      color: #ea4335;
+    }
+
+    .g-yellow {
+      color: #fbbc04;
+    }
+
+    .g-green {
+      color: #34a853;
+    }
+
+    .uw-word {
+      color: #4b2e83;
+      letter-spacing: -1px;
+      font-weight: 800;
+    }
+
+    /* Hide live quantitative metrics from participants.
+     The data is still recorded and exported in CSV/JSON. */
+    .study-header {
+      display: none !important;
+    }
+
+    .search-box {
+      max-width: 720px;
+      flex: 1;
+      height: 46px;
+      border: 1px solid #dfe1e5;
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      color: #3c4043;
+    }
+
+    .search-icons {
+      margin-left: auto;
+      color: #5f6368;
+      display: flex;
+      gap: 12px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 22px;
+      margin-left: 156px;
+      padding: 0 28px;
+      color: #5f6368;
+      font-size: 14px;
+    }
+
+    .tabs span {
+      padding: 12px 0;
+    }
+
+    .tabs .active {
+      color: var(--blue);
+      border-bottom: 3px solid var(--blue);
+    }
+
+    .study-header {
+      display: none;
+      margin-left: 156px;
+      padding: 12px 28px 14px 0;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 10px;
+      max-width: 1180px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 20px;
+    }
+
+    .metric span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .results-wrapper {
+      max-width: 900px;
+      margin-left: 156px;
+      padding: 18px 28px 40px 0;
+    }
+
+    .mode-card {
+      border: 1px solid #d2e3fc;
+      background: #f8fbff;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 18px;
+    }
+
+    .mode-card h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .mode-card p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .progress-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .progress-item {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px;
+    }
+
+    .progress-item strong {
+      display: block;
+      font-size: 13px;
+    }
+
+    .progress-item span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .result-count {
+      color: #70757a;
+      font-size: 14px;
+      margin-bottom: 18px;
+    }
+
+    .result-item {
+      margin-bottom: 24px;
+    }
+
+    .result-url {
+      color: #202124;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+
+    .result-url span {
+      color: #5f6368;
+    }
+
+    .result-title {
+      color: #1a0dab;
+      font-size: 21px;
+      line-height: 1.25;
+      margin: 0 0 6px;
+      font-weight: 400;
+      cursor: pointer;
+    }
+
+    .result-title:hover {
+      text-decoration: underline;
+    }
+
+    .result-desc {
+      color: #4d5156;
+      font-size: 15px;
+      line-height: 1.45;
+      margin: 0 0 8px;
+    }
+
+    .result-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .small-link {
+      background: transparent;
+      color: var(--blue);
+      padding: 4px 0;
+      font-weight: 400;
+    }
+
+    .small-link:hover {
+      box-shadow: none;
+      border-color: transparent;
+      text-decoration: underline;
+    }
+
+    .save-button.saved {
+      color: white;
+      background: var(--green);
+    }
+
+    .pagination-area {
+      margin: 28px 0 34px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .page-btn {
+      background: white;
+      color: var(--blue);
+      min-width: 34px;
+      padding: 8px;
+    }
+
+    .page-btn.active {
+      color: #202124;
+      background: #f1f3f4;
+      font-weight: 700;
+    }
+
+    .next-btn {
+      background: white;
+      color: var(--blue);
+    }
+
+    .load-more-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      margin: 26px 0 36px;
+    }
+
+    .load-more-btn {
+      min-width: 260px;
+      border-radius: 24px;
+      padding: 12px 18px;
+      background: #f8fafd;
+      border: 1px solid #dadce0;
+      color: #202124;
+    }
+
+    .loading-text {
+      color: #70757a;
+      font-size: 14px;
+      text-align: center;
+      padding: 18px;
+    }
+
+    .end-text {
+      color: #70757a;
+      font-size: 14px;
+      text-align: center;
+      padding: 18px;
+    }
+
+    .records-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f8fafd;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(32, 33, 36, .55);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      z-index: 100;
+    }
+
+    .modal {
+      width: min(600px, 100%);
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, .25);
+    }
+
+    .modal h2 {
+      color: #1a0dab;
+      font-weight: 400;
+      margin: 6px 0 8px;
+    }
+
+    .modal p {
+      color: #4d5156;
+      line-height: 1.5;
+    }
+
+    .modal-url {
+      color: #188038;
+      font-size: 14px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1050px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .tabs,
+      .study-header,
+      .results-wrapper {
+        margin-left: 24px;
+        padding-right: 24px;
+      }
+
+      .search-row {
+        padding-left: 24px;
+      }
+
+      .google-word {
+        font-size: 28px;
+      }
+
+      .study-header,
+      .progress-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const STORAGE_KEY = "google_style_interaction_pattern_records_v4";
+      const BATCH_SIZE = 10;
+
+      const items = [
+        ["Healthy Meal Prep Ideas", "Food", "Simple weekly meal ideas for busy students."],
+        ["Budget Travel Tips", "Travel", "How to plan a trip without overspending."],
+        ["Best Study Apps", "School", "Tools that help with notes, reminders, and focus."],
+        ["Beginner Workout Plan", "Fitness", "A simple routine for people starting exercise."],
+        ["Coffee Shops Near Campus", "Local", "Places to study, relax, and meet friends."],
+        ["Laptop Buying Guide", "Technology", "Things to compare before buying a laptop."],
+        ["Summer Outfit Ideas", "Lifestyle", "Comfortable outfit ideas for warm weather."],
+        ["Productivity Tools", "Productivity", "Apps and habits for planning tasks better."],
+        ["Easy Dinner Recipes", "Food", "Quick meals that take less than 30 minutes."],
+        ["Weekend Hiking Spots", "Travel", "Nearby trails for a short outdoor trip."],
+        ["Note Taking Methods", "School", "Different ways to organize lecture notes."],
+        ["Home Desk Setup", "Technology", "Ideas for a comfortable study desk."],
+        ["Grocery Budget Planner", "Finance", "How to plan meals and reduce grocery costs."],
+        ["Campus Event Calendar", "Local", "Find activities happening this month."],
+        ["Beginner Yoga Routine", "Fitness", "Short stretches for stress relief."],
+        ["Scholarship Search Tips", "School", "How to organize applications and deadlines."],
+        ["Used Car Checklist", "Shopping", "What to check before buying a used car."],
+        ["Simple Breakfast Ideas", "Food", "Fast breakfast choices for busy mornings."],
+        ["Time Blocking Guide", "Productivity", "Plan your day using structured time blocks."],
+        ["Online Safety Basics", "Technology", "Protect accounts, passwords, and personal data."],
+        ["Rainy Day Activities", "Lifestyle", "Indoor activities for bad weather days."],
+        ["Resume Improvement Tips", "Career", "Small changes that make resumes easier to read."],
+        ["Interview Practice Guide", "Career", "Common questions and preparation strategies."],
+        ["Apartment Search Checklist", "Housing", "What to compare before choosing an apartment."],
+        ["Public Transit Guide", "Local", "How to plan routes around the city."],
+        ["Affordable Gift Ideas", "Shopping", "Low-cost gift ideas for friends and family."],
+        ["Morning Routine Builder", "Lifestyle", "Create a routine that helps start the day."],
+        ["Stress Management Tips", "Wellness", "Simple ways to manage school and work stress."],
+        ["Group Project Planner", "School", "Coordinate tasks and deadlines with teammates."],
+        ["Portfolio Website Basics", "Career", "How to present projects online."],
+        ["Healthy Snack List", "Food", "Easy snacks for studying or working."],
+        ["Phone Photography Tips", "Technology", "Improve photos using simple composition rules."],
+        ["Room Organization Ideas", "Housing", "Make a small room easier to use."],
+        ["Saving Money Challenge", "Finance", "A simple plan to save small amounts weekly."],
+        ["Fitness Progress Tracker", "Fitness", "Track workouts and weekly progress."],
+        ["Local Museum Guide", "Local", "Interesting museums to visit nearby."],
+        ["Meal Planning for Beginners", "Food", "How to plan simple meals for the week."],
+        ["Travel Packing Checklist", "Travel", "Items to remember before a short trip."],
+        ["Focus Music Playlist", "Productivity", "Music ideas for studying and deep work."],
+        ["Study Break Ideas", "Wellness", "Short breaks that help avoid burnout."],
+        ["Internship Search Plan", "Career", "Organize applications and follow-up dates."],
+        ["Textbook Savings Tips", "Finance", "Ways to spend less on school materials."],
+        ["Beginner Coding Practice", "Technology", "Small coding exercises for beginners."],
+        ["Healthy Sleep Habits", "Wellness", "Improve sleep with simple routine changes."],
+        ["Weekly Cleaning Plan", "Housing", "Keep a living space organized with small tasks."],
+        ["Local Food Trucks", "Local", "Casual food options around the city."],
+        ["Financial Aid Reminder", "Finance", "Keep track of forms and deadlines."],
+        ["Simple Coding Portfolio", "Career", "Show small projects in a professional way."],
+        ["Beginner Running Plan", "Fitness", "A gentle plan for building running stamina."],
+        ["Weekend Movie List", "Lifestyle", "Movies to watch during a relaxed weekend."],
+        ["Digital Calendar Setup", "Productivity", "Organize deadlines and appointments."],
+        ["Cheap Lunch Ideas", "Food", "Affordable lunch ideas for school or work."],
+        ["Apartment Move-In Tips", "Housing", "What to prepare before moving."],
+        ["Beginner Budget Worksheet", "Finance", "Track income, spending, and savings."],
+        ["Public Speaking Practice", "School", "Practice confidence for class presentations."],
+        ["Portfolio Photo Tips", "Career", "Make project images easier to understand."],
+        ["Local Volunteer Options", "Local", "Community activities and volunteer work."],
+        ["Winter Travel Safety", "Travel", "Prepare for cold weather travel."],
+        ["Group Chat Etiquette", "Lifestyle", "Communicate better in team chats."],
+        ["Quick Stretch Routine", "Fitness", "Short movement breaks during studying."],
+        ["Cloud Storage Comparison", "Technology", "Compare storage tools for school files."],
+        ["Exam Week Planning", "School", "Plan studying, sleeping, and breaks."],
+        ["Roommate Agreement Tips", "Housing", "Avoid conflict by setting expectations."],
+        ["Farmer Market Guide", "Local", "Find affordable fresh food nearby."],
+        ["Emergency Fund Basics", "Finance", "Start saving for unexpected expenses."],
+        ["Personal Website Checklist", "Career", "What to include on a student website."],
+        ["Budget Grocery Recipes", "Food", "Low-cost recipes for weekly meals."],
+        ["Weekend Road Trip Plan", "Travel", "Plan a short trip with friends."],
+        ["Simple Habit Tracker", "Productivity", "Track small daily habits."],
+        ["Mindful Breathing Exercise", "Wellness", "Short breathing exercise for stress."],
+        ["Used Furniture Checklist", "Shopping", "Check quality before buying used furniture."],
+        ["Desk Ergonomics Guide", "Technology", "Improve comfort during computer work."],
+        ["Class Registration Tips", "School", "Plan schedule and backup classes."],
+        ["Local Library Services", "Local", "Study rooms, printing, and resources."],
+        ["Career Fair Preparation", "Career", "Prepare questions and resume copies."],
+        ["Weekly Fitness Schedule", "Fitness", "Plan workouts around school and work."],
+        ["Room Lighting Ideas", "Housing", "Improve room comfort with lighting."],
+        ["Travel Budget Calculator", "Finance", "Estimate trip costs before booking."],
+        ["Short Video Editing Tips", "Technology", "Basic editing for social videos."],
+        ["Healthy Dessert Ideas", "Food", "Simple desserts with lighter ingredients."],
+        ["Study Group Rules", "School", "Make study groups more useful."],
+        ["Local Park Guide", "Local", "Outdoor places for walking and relaxing."],
+        ["Morning Focus Checklist", "Productivity", "Prepare for a focused morning."],
+        ["Job Application Tracker", "Career", "Track applications and follow-ups."],
+        ["Affordable Room Decor", "Shopping", "Decorate a small room on a budget."],
+        ["Beginner Strength Training", "Fitness", "Simple strength routine for beginners."],
+        ["Weekend Self-Care Plan", "Wellness", "Plan rest and recovery time."],
+        ["Travel Document Reminder", "Travel", "Keep travel documents organized."],
+        ["Student Discount List", "Finance", "Find discounts for students."],
+        ["Simple Pasta Recipes", "Food", "Easy pasta meals for weeknights."],
+        ["Local Study Spots", "Local", "Quiet places for focused studying."],
+        ["Coding Interview Basics", "Career", "Practice common coding interview topics."],
+        ["Small Closet Organization", "Housing", "Organize clothes in a small space."]
+      ].map((item, index) => ({
+        id: index + 1,
+        title: item[0],
+        category: item[1],
+        description: item[2],
+        url: `studentresources.example.com/${item[1].toLowerCase()}/${item[0].toLowerCase().replaceAll(" ", "-")}`,
+        date: ["Jan 12, 2026", "Feb 3, 2026", "Mar 18, 2026", "Apr 9, 2026", "May 21, 2026"][index % 5]
+      }));
+
+      const patterns = {
+        infinite: "Infinite Scroll",
+        pagination: "Pagination",
+        loadmore: "Load More"
+      };
+
+      const taskInfo = {
+        browse: {
+          label: "Task 1: Browse and Save",
+          target: "",
+          instruction: "Browse the search results and save 3 results that look useful.",
+          success: "Success = participant saves at least 3 results."
+        },
+        find: {
+          label: "Task 2: Find a Specific Result",
+          target: "Travel Budget Calculator",
+          instruction: "Find and open the result titled “Travel Budget Calculator.” Do not use browser search.",
+          success: "Success = participant opens the correct target result."
+        },
+        return: {
+          label: "Task 3: Return to a Previous Result",
+          target: "Budget Travel Tips",
+          instruction: "Start from the first results page. Open “Budget Travel Tips” first. Then move forward through the results until you have viewed at least 12 different results after opening it. After that, return to “Budget Travel Tips” and open it again.",
+          success: "Success = open the page-1 target, browse away, view 12 more results, then return to the same target."
+        },
+        stop: {
+          label: "Task 4: Stop and Control",
+          target: "",
+          instruction: "Imagine you need to choose one useful student-life resource to recommend to a classmate. Browse the results, save the best result you would choose, and stop when you feel you have enough information. After stopping, write why you stopped in the notes box, such as: found a good option, reached a clear page boundary, results became less relevant, or felt there were too many results.",
+          success: "Success = participant saves one chosen result, stops intentionally, and explains the stopping reason."
+        }
+      };
+
+      const state = {
+        pattern: "pagination",
+        task: "find",
+        page: 1,
+        visibleCount: BATCH_SIZE,
+        active: null,
+        observer: null,
+        lastScrollY: 0,
+        lastDirection: null
+      };
+
+      const $ = (selector) => document.querySelector(selector);
+      const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function nowISO() {
+        return new Date().toISOString();
+      }
+
+      function secondsBetween(start, end) {
+        return ((new Date(end) - new Date(start)) / 1000).toFixed(2);
+      }
+
+      function getRecords() {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      }
+
+      function saveRecords(records) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      }
+
+      function makeRecord() {
+        const task = taskInfo[state.task];
+
+        return {
+          sessionId: "S-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+          participantId: $("#participantId").value.trim(),
+          pattern: state.pattern,
+          patternLabel: patterns[state.pattern],
+          task: state.task,
+          taskLabel: task.label,
+          targetTitle: task.target,
+          startTimeISO: nowISO(),
+          endTimeISO: "",
+          durationSeconds: "",
+          success: "",
+          failureReason: "",
+          uniqueResultsViewed: 0,
+          resultIdsViewed: [],
+          resultsOpened: 0,
+          wrongOpens: 0,
+          targetOpens: 0,
+          savedResults: 0,
+          savedResultIds: [],
+          pageChanges: 0,
+          loadMoreClicks: 0,
+          infiniteAutoLoads: 0,
+          scrollDistancePx: 0,
+          scrollDirectionChanges: 0,
+          maxScrollDepthPx: 0,
+          returnFirstOpen: false,
+          viewedAfterFirstOpen: 0,
+          returnRequirementMet: false,
+          returnSecondOpen: false,
+          stopLocation: "",
+          controlRating: "",
+          findabilityRating: "",
+          satisfactionRating: "",
+          notes: "",
+          eventLog: []
+        };
+      }
+
+      function logEvent(type, data = {}) {
+        if (!state.active) return;
+        state.active.eventLog.push({ timeISO: nowISO(), type, data });
+      }
+
+      function buildApp() {
+        $("#app").innerHTML = `
+      <div class="app">
+        <aside class="sidebar">
+          <div class="brand">
+            <h1>Infinite Scroll Study</h1>
+            <p>This testing interface uses a Google-style search results layout as a visual reference, with a UW label replacing the Google logo. The UI was generated with ChatGPT only for the CSS590 testing study, and the study focuses on comparing navigation patterns, not evaluating Google itself.</p>
+          </div>
+
+          <section class="panel">
+            <h2>1. Setup</h2>
+            <div class="field">
+              <label for="participantId">Participant ID</label>
+              <input id="participantId" placeholder="Example: P1">
+            </div>
+
+            <div class="field">
+              <label for="patternSelect">Interaction Pattern</label>
+              <select id="patternSelect">
+                <option value="pagination">Pagination</option>
+                <option value="infinite">Infinite Scroll</option>
+                <option value="loadmore">Load More</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="taskSelect">Task</label>
+              <select id="taskSelect">
+                <option value="browse">Task 1: Browse and Save</option>
+                <option value="find" selected>Task 2: Find a Specific Result</option>
+                <option value="return">Task 3: Return to Previous Result</option>
+                <option value="stop">Task 4: Stop and Control</option>
+              </select>
+            </div>
+
+            <div class="button-row">
+              <button id="startBtn" class="primary">Start Task</button>
+              <button id="completeBtn" class="success">Complete Task</button>
+              <button id="failBtn" class="danger">Mark Failure</button>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>2. Current Task</h2>
+            <div id="taskBox" class="task-box"></div>
+          </section>
+
+          <section class="panel">
+            <h2>3. Ratings After Task</h2>
+            <div class="field">
+              <label for="controlRating">Control rating</label>
+              <select id="controlRating">
+                <option value="">Select</option>
+                <option value="1">1 - Very low control</option>
+                <option value="2">2 - Low control</option>
+                <option value="3">3 - Medium</option>
+                <option value="4">4 - High control</option>
+                <option value="5">5 - Very high control</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="findabilityRating">Findability rating</label>
+              <select id="findabilityRating">
+                <option value="">Select</option>
+                <option value="1">1 - Very difficult</option>
+                <option value="2">2 - Difficult</option>
+                <option value="3">3 - Medium</option>
+                <option value="4">4 - Easy</option>
+                <option value="5">5 - Very easy</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="satisfactionRating">Satisfaction rating</label>
+              <select id="satisfactionRating">
+                <option value="">Select</option>
+                <option value="1">1 - Very low</option>
+                <option value="2">2 - Low</option>
+                <option value="3">3 - Medium</option>
+                <option value="4">4 - High</option>
+                <option value="5">5 - Very high</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="notes">Observation notes / participant quote</label>
+              <textarea id="notes" placeholder="Example: Participant said they knew the result was above, but could not remember exactly where."></textarea>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>4. Export Data</h2>
+            <div class="button-row">
+              <button id="exportCsvBtn" class="primary">Export CSV</button>
+              <button id="exportJsonBtn">Export JSON</button>
+              <button id="clearBtn" class="danger">Clear</button>
+            </div>
+          </section>
+        </aside>
+
+        <main class="main">
+          <div class="top-search-area">
+            <div class="search-row">
+              <div class="google-word uw-word">UW</div>
+              <div class="search-box">
+                student life resources useful guides
+                <span class="search-icons">⌕ 🎙</span>
+              </div>
+              <span class="status-pill">
+                <span id="statusDot" class="status-dot"></span>
+                <span id="statusText">Not started</span>
+              </span>
+            </div>
+
+            <div class="tabs">
+              <span class="active">All</span>
+              <span>Images</span>
+              <span>Videos</span>
+              <span>News</span>
+              <span>Shopping</span>
+              <span>More</span>
+            </div>
+
+            <div class="study-header">
+              <div class="metric"><strong id="timeMetric">0.0s</strong><span>Task time</span></div>
+              <div class="metric"><strong id="viewMetric">0</strong><span>Unique results viewed</span></div>
+              <div class="metric"><strong id="openMetric">0</strong><span>Results opened</span></div>
+              <div class="metric"><strong id="errorMetric">0</strong><span>Wrong opens</span></div>
+            </div>
+          </div>
+
+          <section class="results-wrapper">
+            <div id="resultCount" class="result-count"></div>
+            <div id="results"></div>
+            <div id="navigationArea"></div>
+
+            <section class="panel">
+              <div class="button-row">
+                <button id="toggleRecordsBtn">Show Saved Study Records</button>
+              </div>
+              <div id="recordsPanel" class="hidden" style="margin-top: 12px;">
+                <h2>Saved Study Records</h2>
+                <div id="records" class="records-wrap"></div>
+              </div>
+            </section>
+          </section>
+        </main>
+      </div>
+
+      <div id="modalRoot"></div>
+    `;
+      }
+
+      function renderTaskBox() {
+        const task = taskInfo[state.task];
+
+        let progressText = "";
+        if (state.active && state.task === "browse") {
+          progressText = `<p><strong>Progress:</strong> Saved ${state.active.savedResults}/3 results.</p>`;
+        } else if (state.active && state.task === "return") {
+          if (!state.active.returnFirstOpen) {
+            progressText = `<p><strong>Progress:</strong> First open the target result.</p>`;
+          } else if (!state.active.returnRequirementMet) {
+            progressText = `<p><strong>Progress:</strong> Viewed ${state.active.viewedAfterFirstOpen}/12 results after opening the target.</p>`;
+          } else if (!state.active.returnSecondOpen) {
+            progressText = `<p><strong>Progress:</strong> Now return to the original target and open it again.</p>`;
+          } else {
+            progressText = `<p><strong>Progress:</strong> Return task completed.</p>`;
+          }
+        } else if (state.active && state.task === "stop") {
+          progressText = `<p><strong>Progress:</strong> Save one final choice, then click Complete Task when the participant explains why they stopped.</p>`;
+        }
+
+        $("#taskBox").innerHTML = `
+      <h3>${escapeHtml(task.label)}</h3>
+      <p>${escapeHtml(task.instruction)}</p>
+      <p><strong>Success rule:</strong> ${escapeHtml(task.success)}</p>
+      ${progressText}
+    `;
+      }
+
+      function setStatus(text, mode) {
+        $("#statusText").textContent = text;
+        $("#statusDot").className = "status-dot";
+        if (mode) $("#statusDot").classList.add(mode);
+      }
+
+      function visibleItems() {
+        if (state.pattern === "pagination") {
+          const start = (state.page - 1) * BATCH_SIZE;
+          return items.slice(start, start + BATCH_SIZE);
+        }
+        return items.slice(0, state.visibleCount);
+      }
+
+      function render() {
+        renderResults();
+        renderNavigation();
+        setupObserver();
+        updateProgress();
+        updateMetrics();
+      }
+
+      function renderResults() {
+        const current = visibleItems();
+        const total = items.length;
+
+        let startNumber = 1;
+        let endNumber = current.length;
+
+        if (state.pattern === "pagination") {
+          startNumber = (state.page - 1) * BATCH_SIZE + 1;
+          endNumber = Math.min(startNumber + BATCH_SIZE - 1, total);
+        }
+
+        $("#resultCount").textContent = `About ${total * 1037} results (${state.pattern === "pagination" ? startNumber + "-" + endNumber : "showing " + current.length}).`;
+
+        $("#results").innerHTML = current.map(item => {
+          const saved = state.active && state.active.savedResultIds.includes(item.id);
+          return `
+        <article class="result-item observed-result" data-id="${item.id}">
+          <div class="result-url">${escapeHtml(item.url)} <span>› ${escapeHtml(item.category)}</span></div>
+          <h3 class="result-title open-result" data-id="${item.id}">${escapeHtml(item.title)}</h3>
+          <p class="result-desc">${escapeHtml(item.description)} This result was updated ${item.date}. It is part of the same controlled result set for the study.</p>
+          <div class="result-actions">
+            <button class="small-link open-result" data-id="${item.id}">Open</button>
+            <button class="small-link">Cached</button>
+            <button class="small-link">Similar</button>
+            <button class="save-button ${saved ? "saved" : ""}" data-id="${item.id}">${saved ? "Saved ✓" : "Save result"}</button>
+          </div>
+        </article>
+      `;
+        }).join("");
+
+        $$(".open-result").forEach(button => {
+          button.addEventListener("click", () => {
+            const item = items.find(x => x.id === Number(button.dataset.id));
+            openResult(item);
+          });
+        });
+
+        $$(".save-button").forEach(button => {
+          button.addEventListener("click", () => {
+            saveResult(Number(button.dataset.id));
+          });
+        });
+      }
+
+      function renderNavigation() {
+        const nav = $("#navigationArea");
+        nav.innerHTML = "";
+
+        if (state.pattern === "pagination") {
+          const pages = Math.ceil(items.length / BATCH_SIZE);
+          nav.innerHTML = `
+        <div class="pagination-area">
+          ${Array.from({ length: pages }, (_, i) => {
+            const page = i + 1;
+            return `<button class="page-btn ${page === state.page ? "active" : ""}" data-page="${page}">${page}</button>`;
+          }).join("")}
+          <button class="next-btn" id="nextBtn">Next</button>
+        </div>
+      `;
+
+          $$(".page-btn").forEach(button => {
+            button.addEventListener("click", () => {
+              const page = Number(button.dataset.page);
+              if (page !== state.page) {
+                state.page = page;
+                if (state.active) {
+                  state.active.pageChanges += 1;
+                  logEvent("page_change", { page });
+                }
+                window.scrollTo({ top: 0, behavior: "instant" });
+                render();
+              }
+            });
+          });
+
+          $("#nextBtn").addEventListener("click", () => {
+            if (state.page < pages) {
+              state.page += 1;
+              if (state.active) {
+                state.active.pageChanges += 1;
+                logEvent("next_page", { page: state.page });
+              }
+              window.scrollTo({ top: 0, behavior: "instant" });
+              render();
+            }
+          });
+        }
+
+        if (state.pattern === "loadmore") {
+          if (state.visibleCount < items.length) {
+            nav.innerHTML = `
+          <div class="load-more-area">
+            <button id="loadMoreBtn" class="load-more-btn">More results</button>
+            <div class="loading-text">More results appear only when the user chooses to continue.</div>
+          </div>
+        `;
+            $("#loadMoreBtn").addEventListener("click", () => {
+              state.visibleCount = Math.min(state.visibleCount + BATCH_SIZE, items.length);
+              if (state.active) {
+                state.active.loadMoreClicks += 1;
+                logEvent("load_more_click", { visibleCount: state.visibleCount });
+              }
+              render();
+            });
+          } else {
+            nav.innerHTML = `<div class="end-text">End of results</div>`;
+          }
+        }
+
+        if (state.pattern === "infinite") {
+          nav.innerHTML = state.visibleCount < items.length
+            ? `<div class="loading-text">Scroll near the bottom to automatically load more results.</div>`
+            : `<div class="end-text">End of results</div>`;
+        }
+      }
+
+      function setupObserver() {
+        if (state.observer) state.observer.disconnect();
+        state.observer = new IntersectionObserver(entries => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              recordViewed(Number(entry.target.dataset.id));
+            }
+          });
+        }, { threshold: 0.55 });
+
+        $$(".observed-result").forEach(item => state.observer.observe(item));
+      }
+
+      function recordViewed(id) {
+        if (!state.active) return;
+
+        if (!state.active.resultIdsViewed.includes(id)) {
+          state.active.resultIdsViewed.push(id);
+          state.active.uniqueResultsViewed = state.active.resultIdsViewed.length;
+          logEvent("result_viewed", { id });
+
+          if (state.task === "return" && state.active.returnFirstOpen && !state.active.returnSecondOpen) {
+            const target = items.find(x => x.title === taskInfo.return.target);
+            if (target && id !== target.id) {
+              state.active.viewedAfterFirstOpen += 1;
+              if (state.active.viewedAfterFirstOpen >= 12) {
+                state.active.returnRequirementMet = true;
+              }
+            }
+          }
+
+          updateProgress();
+          updateMetrics();
+        }
+      }
+
+      function openResult(item) {
+        if (!item) return;
+
+        if (state.active) {
+          const target = taskInfo[state.task].target;
+          const isTarget = target && item.title === target;
+
+          state.active.resultsOpened += 1;
+
+          if (target) {
+            if (isTarget) state.active.targetOpens += 1;
+            else state.active.wrongOpens += 1;
+          }
+
+          logEvent("result_opened", { id: item.id, title: item.title, isTarget });
+
+          if (state.task === "find" && isTarget) {
+            showModal(item, "Correct target result opened.");
+            setTimeout(() => completeTask(true, "Target result opened."), 250);
+            return;
+          }
+
+          if (state.task === "return" && isTarget) {
+            if (!state.active.returnFirstOpen) {
+              state.active.returnFirstOpen = true;
+              state.active.viewedAfterFirstOpen = 0;
+              showModal(item, "Good. Now continue browsing and view 12 more results, then return to this result.");
+              logEvent("return_first_open", { id: item.id });
+              updateProgress();
+              updateMetrics();
+              return;
+            }
+
+            if (state.active.returnRequirementMet && !state.active.returnSecondOpen) {
+              state.active.returnSecondOpen = true;
+              showModal(item, "Returned to the original result.");
+              setTimeout(() => completeTask(true, "Returned to original result."), 250);
+              return;
+            }
+
+            if (!state.active.returnRequirementMet) {
+              showModal(item, "You found the result again, but the task requires viewing 12 more results first.");
+              return;
+            }
+          }
+        }
+
+        showModal(item);
+        updateMetrics();
+      }
+
+      function saveResult(id) {
+        if (!state.active) {
+          alert("Start a task first.");
+          return;
+        }
+
+        if (!state.active.savedResultIds.includes(id)) {
+          state.active.savedResultIds.push(id);
+          state.active.savedResults = state.active.savedResultIds.length;
+          logEvent("result_saved", { id });
+        }
+
+        render();
+      }
+
+      function showModal(item, message = "") {
+        $("#modalRoot").innerHTML = `
+      <div class="modal-backdrop">
+        <div class="modal">
+          <div class="modal-url">${escapeHtml(item.url)}</div>
+          <h2>${escapeHtml(item.title)}</h2>
+          <p>${escapeHtml(item.description)} This detail page simulates opening a search result from the list.</p>
+          ${message ? `<p><strong>${escapeHtml(message)}</strong></p>` : ""}
+          <div class="button-row">
+            <button id="closeModalBtn" class="primary">Close</button>
+          </div>
+        </div>
+      </div>
+    `;
+        $("#closeModalBtn").addEventListener("click", () => $("#modalRoot").innerHTML = "");
+      }
+
+      function startTask() {
+        const participant = $("#participantId").value.trim();
+
+        if (!participant) {
+          alert("Please enter a Participant ID first, such as P1.");
+          return;
+        }
+
+        if (state.active && !confirm("A task is already running. Discard it and start over?")) {
+          return;
+        }
+
+        $("#controlRating").value = "";
+        $("#findabilityRating").value = "";
+        $("#satisfactionRating").value = "";
+        $("#notes").value = "";
+
+        state.page = 1;
+        state.visibleCount = BATCH_SIZE;
+        state.active = makeRecord();
+        state.lastScrollY = window.scrollY;
+        state.lastDirection = null;
+
+        setStatus("Running", "running");
+        logEvent("task_started", { pattern: state.pattern, task: state.task });
+        window.scrollTo({ top: 0, behavior: "instant" });
+        render();
+        updateMetrics();
+      }
+
+      function completeTask(success = true, reason = "") {
+        if (!state.active) {
+          alert("No active task is running.");
+          return;
+        }
+
+        if (success && state.task === "browse" && state.active.savedResults < 3) {
+          if (!confirm("The participant saved fewer than 3 results. Complete anyway?")) return;
+        }
+
+        if (success && state.task === "return" && !state.active.returnSecondOpen) {
+          if (!confirm("The return task has not fully completed. Complete anyway?")) return;
+        }
+
+        if (success && state.task === "stop" && state.active.savedResults < 1) {
+          if (!confirm("The stop/control task asks the participant to save one final choice. Complete anyway?")) return;
+        }
+
+        if (success && state.task === "stop" && !$("#notes").value.trim()) {
+          if (!confirm("For the stop/control task, add a short note explaining why the participant stopped. Complete anyway?")) return;
+        }
+
+        const record = state.active;
+        record.endTimeISO = nowISO();
+        record.durationSeconds = secondsBetween(record.startTimeISO, record.endTimeISO);
+        record.success = success ? "Yes" : "No";
+        record.failureReason = reason;
+        record.stopLocation = getStopLocation();
+        record.controlRating = $("#controlRating").value;
+        record.findabilityRating = $("#findabilityRating").value;
+        record.satisfactionRating = $("#satisfactionRating").value;
+        record.notes = $("#notes").value.trim();
+
+        logEvent(success ? "task_complete_success" : "task_complete_failure", { reason });
+
+        const records = getRecords();
+        records.push(record);
+        saveRecords(records);
+
+        state.active = null;
+        $("#modalRoot").innerHTML = "";
+        setStatus("Saved", "saved");
+        renderRecords();
+        updateMetrics();
+        updateProgress();
+      }
+
+      function failTask() {
+        if (!state.active) {
+          alert("No active task is running.");
+          return;
+        }
+
+        const reason = prompt("Reason for failure:");
+        completeTask(false, reason || "Marked as failure by observer.");
+      }
+
+      function getStopLocation() {
+        if (state.pattern === "pagination") return "Page " + state.page;
+        return "Visible results: " + state.visibleCount;
+      }
+
+      function updateProgress() {
+        renderTaskBox();
+      }
+
+      function updateMetrics() {
+        if (!state.active) {
+          $("#timeMetric").textContent = "0.0s";
+          $("#viewMetric").textContent = "0";
+          $("#openMetric").textContent = "0";
+          $("#errorMetric").textContent = "0";
+          return;
+        }
+
+        $("#timeMetric").textContent = secondsBetween(state.active.startTimeISO, nowISO()) + "s";
+        $("#viewMetric").textContent = state.active.uniqueResultsViewed;
+        $("#openMetric").textContent = state.active.resultsOpened;
+        $("#errorMetric").textContent = state.active.wrongOpens;
+      }
+
+      function handleScroll() {
+        if (state.active) {
+          const y = window.scrollY;
+          const delta = Math.abs(y - state.lastScrollY);
+
+          if (delta > 0) {
+            state.active.scrollDistancePx += delta;
+            state.active.maxScrollDepthPx = Math.max(state.active.maxScrollDepthPx, y);
+
+            const direction = y > state.lastScrollY ? "down" : "up";
+            if (state.lastDirection && state.lastDirection !== direction) {
+              state.active.scrollDirectionChanges += 1;
+              logEvent("scroll_direction_change", { direction });
+            }
+
+            state.lastDirection = direction;
+            state.lastScrollY = y;
+          }
+        }
+
+        if (state.pattern === "infinite" && state.visibleCount < items.length) {
+          const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 500;
+          if (nearBottom) {
+            state.visibleCount = Math.min(state.visibleCount + BATCH_SIZE, items.length);
+
+            if (state.active) {
+              state.active.infiniteAutoLoads += 1;
+              logEvent("infinite_auto_load", { visibleCount: state.visibleCount });
+            }
+
+            render();
+          }
+        }
+      }
+
+      function recordsToCsv(records) {
+        const columns = [
+          "sessionId", "participantId", "patternLabel", "taskLabel", "targetTitle",
+          "startTimeISO", "endTimeISO", "durationSeconds", "success", "failureReason",
+          "uniqueResultsViewed", "resultsOpened", "wrongOpens", "targetOpens",
+          "savedResults", "pageChanges", "loadMoreClicks", "infiniteAutoLoads",
+          "scrollDistancePx", "scrollDirectionChanges", "maxScrollDepthPx",
+          "returnFirstOpen", "viewedAfterFirstOpen", "returnRequirementMet", "returnSecondOpen",
+          "stopLocation", "controlRating", "findabilityRating", "satisfactionRating", "notes",
+          "resultIdsViewed", "savedResultIds"
+        ];
+
+        const rows = records.map(record => columns.map(column => {
+          const rawValue = Array.isArray(record[column]) ? record[column].join("|") : (record[column] ?? "");
+          return '"' + String(rawValue).replaceAll('"', '""') + '"';
+        }).join(","));
+
+        return [columns.join(","), ...rows].join("\n");
+      }
+
+      function downloadFile(filename, text, type) {
+        const blob = new Blob([text], { type });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.download = filename;
+        link.click();
+
+        URL.revokeObjectURL(url);
+      }
+
+      function exportCsv() {
+        const records = getRecords();
+        if (!records.length) {
+          alert("No saved data yet.");
+          return;
+        }
+
+        downloadFile("google_style_interaction_study_data.csv", recordsToCsv(records), "text/csv");
+      }
+
+      function exportJson() {
+        const records = getRecords();
+        if (!records.length) {
+          alert("No saved data yet.");
+          return;
+        }
+
+        downloadFile("google_style_interaction_study_data.json", JSON.stringify(records, null, 2), "application/json");
+      }
+
+      function renderRecords() {
+        const records = getRecords();
+
+        if (!records.length) {
+          $("#records").innerHTML = "<p>No saved records yet.</p>";
+          return;
+        }
+
+        $("#records").innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Participant</th>
+            <th>Pattern</th>
+            <th>Task</th>
+            <th>Time</th>
+            <th>Success</th>
+            <th>Viewed</th>
+            <th>Opened</th>
+            <th>Errors</th>
+            <th>Saved</th>
+            <th>Control</th>
+            <th>Findability</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${records.map(record => `
+            <tr>
+              <td>${escapeHtml(record.participantId)}</td>
+              <td>${escapeHtml(record.patternLabel)}</td>
+              <td>${escapeHtml(record.taskLabel)}</td>
+              <td>${escapeHtml(record.durationSeconds)}s</td>
+              <td>${escapeHtml(record.success)}</td>
+              <td>${escapeHtml(record.uniqueResultsViewed)}</td>
+              <td>${escapeHtml(record.resultsOpened)}</td>
+              <td>${escapeHtml(record.wrongOpens)}</td>
+              <td>${escapeHtml(record.savedResults)}</td>
+              <td>${escapeHtml(record.controlRating)}</td>
+              <td>${escapeHtml(record.findabilityRating)}</td>
+              <td>${escapeHtml(record.notes)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+      }
+
+      function bindEvents() {
+        $("#patternSelect").addEventListener("change", event => {
+          state.pattern = event.target.value;
+          state.page = 1;
+          state.visibleCount = BATCH_SIZE;
+          window.scrollTo({ top: 0, behavior: "instant" });
+          render();
+        });
+
+        $("#taskSelect").addEventListener("change", event => {
+          state.task = event.target.value;
+          state.page = 1;
+          state.visibleCount = BATCH_SIZE;
+          window.scrollTo({ top: 0, behavior: "instant" });
+          renderTaskBox();
+          render();
+        });
+
+        $("#startBtn").addEventListener("click", startTask);
+        $("#completeBtn").addEventListener("click", () => completeTask(true, "Observer completed task."));
+        $("#failBtn").addEventListener("click", failTask);
+        $("#exportCsvBtn").addEventListener("click", exportCsv);
+        $("#exportJsonBtn").addEventListener("click", exportJson);
+
+        $("#clearBtn").addEventListener("click", () => {
+          if (confirm("Clear all saved data from this browser?")) {
+            localStorage.removeItem(STORAGE_KEY);
+            renderRecords();
+          }
+        });
+
+        $("#toggleRecordsBtn").addEventListener("click", () => {
+          const panel = $("#recordsPanel");
+          const isHidden = panel.classList.contains("hidden");
+          panel.classList.toggle("hidden");
+          $("#toggleRecordsBtn").textContent = isHidden ? "Hide Saved Study Records" : "Show Saved Study Records";
+          if (isHidden) {
+            renderRecords();
+          }
+        });
+
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        setInterval(updateMetrics, 300);
+      }
+
+      function init() {
+        buildApp();
+        bindEvents();
+        renderTaskBox();
+        render();
+        renderRecords();
+        setStatus("Not started", "");
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+
+</html>
