@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Live demo version: observer notes and rating sections removed. Export output normalized to current demo behavior. Google Blue: #4285F4. -->
 <html lang="en">
 
 <head>
@@ -14,6 +15,7 @@
       --line: #dadce0;
       --blue: #1a73e8;
       --blue-dark: #1558b0;
+      --google-link-blue: #4285F4;
       --green: #188038;
       --red: #b3261e;
       --yellow: #fbbc04;
@@ -80,6 +82,14 @@
       border-radius: 8px;
       padding: 9px 11px;
       background: white;
+    }
+
+    select {
+      color: var(--google-link-blue);
+    }
+
+    select option {
+      color: var(--google-link-blue);
     }
 
     textarea {
@@ -382,7 +392,7 @@
     }
 
     .result-title {
-      color: #1a0dab;
+      color: var(--google-link-blue);
       font-size: 21px;
       line-height: 1.25;
       margin: 0 0 6px;
@@ -524,7 +534,7 @@
     }
 
     .modal h2 {
-      color: #1a0dab;
+      color: var(--google-link-blue);
       font-weight: 400;
       margin: 6px 0 8px;
     }
@@ -585,7 +595,7 @@
     (function () {
       "use strict";
 
-      const STORAGE_KEY = "google_style_interaction_pattern_records_v4";
+      const STORAGE_KEY = "google_style_interaction_pattern_records_v6";
       const BATCH_SIZE = 10;
 
       const items = [
@@ -719,8 +729,8 @@
         stop: {
           label: "Task 4: Stop and Control",
           target: "",
-          instruction: "Imagine you need to choose one useful student-life resource to recommend to a classmate. Browse the results, save the best result you would choose, and stop when you feel you have enough information. After stopping, write why you stopped in the notes box, such as: found a good option, reached a clear page boundary, results became less relevant, or felt there were too many results.",
-          success: "Success = participant saves one chosen result, stops intentionally, and explains the stopping reason."
+          instruction: "Imagine you need to choose one useful student-life resource to recommend to a classmate. Browse the results, save the best result you would choose, and stop when you feel you have enough information.",
+          success: "Success = participant saves one chosen result and stops intentionally."
         }
       };
 
@@ -763,6 +773,68 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
       }
 
+      const EXPORT_SCHEMA_VERSION = "live-demo-v6-no-ratings-no-notes";
+
+      const EXPORT_COLUMNS = [
+        "schemaVersion", "sessionId", "participantId", "pattern", "patternLabel", "task", "taskLabel", "targetTitle",
+        "startTimeISO", "endTimeISO", "durationSeconds", "success", "failureReason",
+        "uniqueResultsViewed", "resultsOpened", "wrongOpens", "targetOpens", "savedResults",
+        "pageChanges", "loadMoreClicks", "infiniteAutoLoads", "scrollDistancePx", "scrollDirectionChanges", "maxScrollDepthPx",
+        "returnFirstOpen", "viewedAfterFirstOpen", "returnRequirementMet", "returnSecondOpen", "stopLocation",
+        "resultIdsViewed", "savedResultIds"
+      ];
+
+      function cleanArray(value) {
+        if (Array.isArray(value)) return value;
+        if (value === undefined || value === null || value === "") return [];
+        return String(value).split("|").filter(Boolean);
+      }
+
+      function normalizeRecordForExport(record) {
+        return {
+          schemaVersion: EXPORT_SCHEMA_VERSION,
+          sessionId: record.sessionId || "",
+          participantId: record.participantId || "",
+          pattern: record.pattern || "",
+          patternLabel: record.patternLabel || patterns[record.pattern] || "",
+          task: record.task || "",
+          taskLabel: record.taskLabel || (taskInfo[record.task] ? taskInfo[record.task].label : ""),
+          targetTitle: record.targetTitle || "",
+          startTimeISO: record.startTimeISO || "",
+          endTimeISO: record.endTimeISO || "",
+          durationSeconds: record.durationSeconds || "",
+          success: record.success || "",
+          failureReason: record.failureReason || "",
+          uniqueResultsViewed: Number(record.uniqueResultsViewed || 0),
+          resultsOpened: Number(record.resultsOpened || 0),
+          wrongOpens: Number(record.wrongOpens || 0),
+          targetOpens: Number(record.targetOpens || 0),
+          savedResults: Number(record.savedResults || 0),
+          pageChanges: Number(record.pageChanges || 0),
+          loadMoreClicks: Number(record.loadMoreClicks || 0),
+          infiniteAutoLoads: Number(record.infiniteAutoLoads || 0),
+          scrollDistancePx: Number(record.scrollDistancePx || 0),
+          scrollDirectionChanges: Number(record.scrollDirectionChanges || 0),
+          maxScrollDepthPx: Number(record.maxScrollDepthPx || 0),
+          returnFirstOpen: Boolean(record.returnFirstOpen),
+          viewedAfterFirstOpen: Number(record.viewedAfterFirstOpen || 0),
+          returnRequirementMet: Boolean(record.returnRequirementMet),
+          returnSecondOpen: Boolean(record.returnSecondOpen),
+          stopLocation: record.stopLocation || "",
+          resultIdsViewed: cleanArray(record.resultIdsViewed),
+          savedResultIds: cleanArray(record.savedResultIds),
+          eventLog: cleanArray(record.eventLog)
+        };
+      }
+
+      function exportRecordForCsv(record) {
+        const normalized = normalizeRecordForExport(record);
+        return EXPORT_COLUMNS.reduce((row, column) => {
+          row[column] = normalized[column];
+          return row;
+        }, {});
+      }
+
       function makeRecord() {
         const task = taskInfo[state.task];
 
@@ -797,10 +869,6 @@
           returnRequirementMet: false,
           returnSecondOpen: false,
           stopLocation: "",
-          controlRating: "",
-          findabilityRating: "",
-          satisfactionRating: "",
-          notes: "",
           eventLog: []
         };
       }
@@ -858,51 +926,7 @@
           </section>
 
           <section class="panel">
-            <h2>3. Ratings After Task</h2>
-            <div class="field">
-              <label for="controlRating">Control rating</label>
-              <select id="controlRating">
-                <option value="">Select</option>
-                <option value="1">1 - Very low control</option>
-                <option value="2">2 - Low control</option>
-                <option value="3">3 - Medium</option>
-                <option value="4">4 - High control</option>
-                <option value="5">5 - Very high control</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label for="findabilityRating">Findability rating</label>
-              <select id="findabilityRating">
-                <option value="">Select</option>
-                <option value="1">1 - Very difficult</option>
-                <option value="2">2 - Difficult</option>
-                <option value="3">3 - Medium</option>
-                <option value="4">4 - Easy</option>
-                <option value="5">5 - Very easy</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label for="satisfactionRating">Satisfaction rating</label>
-              <select id="satisfactionRating">
-                <option value="">Select</option>
-                <option value="1">1 - Very low</option>
-                <option value="2">2 - Low</option>
-                <option value="3">3 - Medium</option>
-                <option value="4">4 - High</option>
-                <option value="5">5 - Very high</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label for="notes">Observation notes / participant quote</label>
-              <textarea id="notes" placeholder="Example: Participant said they knew the result was above, but could not remember exactly where."></textarea>
-            </div>
-          </section>
-
-          <section class="panel">
-            <h2>4. Export Data</h2>
+            <h2>3. Export Data</h2>
             <div class="button-row">
               <button id="exportCsvBtn" class="primary">Export CSV</button>
               <button id="exportJsonBtn">Export JSON</button>
@@ -981,7 +1005,7 @@
             progressText = `<p><strong>Progress:</strong> Return task completed.</p>`;
           }
         } else if (state.active && state.task === "stop") {
-          progressText = `<p><strong>Progress:</strong> Save one final choice, then click Complete Task when the participant explains why they stopped.</p>`;
+          progressText = `<p><strong>Progress:</strong> Save one final choice, then click Complete Task when the participant stops intentionally.</p>`;
         }
 
         $("#taskBox").innerHTML = `
@@ -1262,10 +1286,6 @@
           return;
         }
 
-        $("#controlRating").value = "";
-        $("#findabilityRating").value = "";
-        $("#satisfactionRating").value = "";
-        $("#notes").value = "";
 
         state.page = 1;
         state.visibleCount = BATCH_SIZE;
@@ -1298,9 +1318,6 @@
           if (!confirm("The stop/control task asks the participant to save one final choice. Complete anyway?")) return;
         }
 
-        if (success && state.task === "stop" && !$("#notes").value.trim()) {
-          if (!confirm("For the stop/control task, add a short note explaining why the participant stopped. Complete anyway?")) return;
-        }
 
         const record = state.active;
         record.endTimeISO = nowISO();
@@ -1308,10 +1325,6 @@
         record.success = success ? "Yes" : "No";
         record.failureReason = reason;
         record.stopLocation = getStopLocation();
-        record.controlRating = $("#controlRating").value;
-        record.findabilityRating = $("#findabilityRating").value;
-        record.satisfactionRating = $("#satisfactionRating").value;
-        record.notes = $("#notes").value.trim();
 
         logEvent(success ? "task_complete_success" : "task_complete_failure", { reason });
 
@@ -1397,23 +1410,16 @@
       }
 
       function recordsToCsv(records) {
-        const columns = [
-          "sessionId", "participantId", "patternLabel", "taskLabel", "targetTitle",
-          "startTimeISO", "endTimeISO", "durationSeconds", "success", "failureReason",
-          "uniqueResultsViewed", "resultsOpened", "wrongOpens", "targetOpens",
-          "savedResults", "pageChanges", "loadMoreClicks", "infiniteAutoLoads",
-          "scrollDistancePx", "scrollDirectionChanges", "maxScrollDepthPx",
-          "returnFirstOpen", "viewedAfterFirstOpen", "returnRequirementMet", "returnSecondOpen",
-          "stopLocation", "controlRating", "findabilityRating", "satisfactionRating", "notes",
-          "resultIdsViewed", "savedResultIds"
-        ];
+        const rows = records.map(record => {
+          const cleaned = exportRecordForCsv(record);
+          return EXPORT_COLUMNS.map(column => {
+            const value = cleaned[column];
+            const rawValue = Array.isArray(value) ? value.join("|") : (value ?? "");
+            return '"' + String(rawValue).replaceAll('"', '""') + '"';
+          }).join(",");
+        });
 
-        const rows = records.map(record => columns.map(column => {
-          const rawValue = Array.isArray(record[column]) ? record[column].join("|") : (record[column] ?? "");
-          return '"' + String(rawValue).replaceAll('"', '""') + '"';
-        }).join(","));
-
-        return [columns.join(","), ...rows].join("\n");
+        return [EXPORT_COLUMNS.join(","), ...rows].join("\n");
       }
 
       function downloadFile(filename, text, type) {
@@ -1445,11 +1451,18 @@
           return;
         }
 
-        downloadFile("google_style_interaction_study_data.json", JSON.stringify(records, null, 2), "application/json");
+        const exportData = {
+          schemaVersion: EXPORT_SCHEMA_VERSION,
+          exportedAtISO: nowISO(),
+          recordCount: records.length,
+          records: records.map(normalizeRecordForExport)
+        };
+
+        downloadFile("google_style_interaction_study_data.json", JSON.stringify(exportData, null, 2), "application/json");
       }
 
       function renderRecords() {
-        const records = getRecords();
+        const records = getRecords().map(normalizeRecordForExport);
 
         if (!records.length) {
           $("#records").innerHTML = "<p>No saved records yet.</p>";
@@ -1469,9 +1482,7 @@
             <th>Opened</th>
             <th>Errors</th>
             <th>Saved</th>
-            <th>Control</th>
-            <th>Findability</th>
-            <th>Notes</th>
+            <th>Stop Location</th>
           </tr>
         </thead>
         <tbody>
@@ -1486,9 +1497,7 @@
               <td>${escapeHtml(record.resultsOpened)}</td>
               <td>${escapeHtml(record.wrongOpens)}</td>
               <td>${escapeHtml(record.savedResults)}</td>
-              <td>${escapeHtml(record.controlRating)}</td>
-              <td>${escapeHtml(record.findabilityRating)}</td>
-              <td>${escapeHtml(record.notes)}</td>
+              <td>${escapeHtml(record.stopLocation)}</td>
             </tr>
           `).join("")}
         </tbody>
