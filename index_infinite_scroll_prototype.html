@@ -1,12 +1,48 @@
 <!DOCTYPE html>
-<!-- Live demo version: observer notes and rating sections removed. Export output normalized to current demo behavior. Google Blue: #4285F4. -->
+<!--
+  File: index_infinite_scroll_prototype.html
+  Name: Yu Dinh
+  Project: CSS 590 Infinite Scroll Study
+  Purpose:
+    Provides a self-contained usability-testing prototype for comparing
+    pagination, infinite scrolling, and a user-controlled "Load More" pattern.
+    Only for CSS590 testing purposes, this interface uses a Google-style search results
+    design as a visual reference, with a UW label replacing the Google logo.
+
+  Main features:
+    - Configures participant IDs, navigation patterns, and study tasks.
+    - Displays a controlled set of simulated search results.
+    - Records task events and interaction metrics in browser localStorage.
+    - Evaluates task-specific completion conditions.
+    - Exports saved study records as CSV or JSON.
+
+  Authorship and AI-use disclosure:
+    ChatGPT was used to generate and assist with the visual user interface.
+    The study design, application logic, calculations, interaction metrics,
+    task rules, and data-handling approach are original work by Yu Dinh.
+    The author reviewed and integrated the generated UI code.
+
+  Implementation notes:
+    - This file intentionally contains the HTML, CSS, and JavaScript together
+      so the prototype can be opened or pasted as a single standalone file.
+    - The search interface is a visual reference for academic testing only.
+      It is not affiliated with or evaluating Google.
+    - Observer notes and rating sections were removed from this live-demo
+      version, and export output matches the current study behavior.
+-->
 <html lang="en">
 
 <head>
+  <!-- Standard metadata for character encoding and responsive rendering. -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Infinite Scroll Study</title>
+
   <style>
+    /* ----------------------------------------------------------------------
+       Design tokens
+       Centralized colors and effects keep the interface visually consistent.
+       ---------------------------------------------------------------------- */
     :root {
       --bg: #f8fafc;
       --panel: #ffffff;
@@ -22,6 +58,7 @@
       --shadow: 0 2px 8px rgba(60, 64, 67, .10);
     }
 
+    /* Base document and form-element styles. */
     * {
       box-sizing: border-box;
     }
@@ -104,6 +141,7 @@
       margin-bottom: 5px;
     }
 
+    /* Two-column application layout: study controls and participant results. */
     .app {
       display: grid;
       grid-template-columns: 355px 1fr;
@@ -207,6 +245,7 @@
       background: var(--blue);
     }
 
+    /* Sticky simulated search header and navigation tabs. */
     .top-search-area {
       border-bottom: 1px solid #ebedef;
       background: white;
@@ -251,8 +290,10 @@
       font-weight: 800;
     }
 
-    /* Hide live quantitative metrics from participants.
-     The data is still recorded and exported in CSV/JSON. */
+    /*
+      Hide live quantitative metrics from participants to avoid influencing
+      their behavior. The same metrics are still recorded for CSV/JSON export.
+    */
     .study-header {
       display: none !important;
     }
@@ -322,6 +363,7 @@
       color: var(--muted);
     }
 
+    /* Search-result list and item presentation. */
     .results-wrapper {
       max-width: 900px;
       margin-left: 156px;
@@ -435,6 +477,7 @@
       background: var(--green);
     }
 
+    /* Navigation controls for pagination, Load More, and infinite scrolling. */
     .pagination-area {
       margin: 28px 0 34px;
       display: flex;
@@ -492,6 +535,7 @@
       padding: 18px;
     }
 
+    /* Saved-record table shown to the study observer on request. */
     .records-wrap {
       overflow-x: auto;
     }
@@ -515,6 +559,7 @@
       background: #f8fafd;
     }
 
+    /* Simulated result-detail modal. */
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -553,6 +598,7 @@
       display: none !important;
     }
 
+    /* Stack the controls above the results on narrower screens. */
     @media (max-width: 1050px) {
       .app {
         grid-template-columns: 1fr;
@@ -589,15 +635,27 @@
 </head>
 
 <body>
+  <!-- JavaScript renders the complete study interface into this root element. -->
   <div id="app"></div>
 
   <script>
     (function () {
       "use strict";
 
+      /* --------------------------------------------------------------------
+         Study configuration and controlled content
+         -------------------------------------------------------------------- */
+
+      // localStorage key is versioned so incompatible study data stays separate.
       const STORAGE_KEY = "google_style_interaction_pattern_records_v6";
+
+      // Each navigation action reveals ten additional controlled results.
       const BATCH_SIZE = 10;
 
+      /*
+        Fixed result data ensures every participant sees identical content in
+        the same order, regardless of the selected interaction pattern.
+      */
       const items = [
         ["Healthy Meal Prep Ideas", "Food", "Simple weekly meal ideas for busy students."],
         ["Budget Travel Tips", "Travel", "How to plan a trip without overspending."],
@@ -707,6 +765,7 @@
         loadmore: "Load More"
       };
 
+      // Instructions and success conditions for each usability-study task.
       const taskInfo = {
         browse: {
           label: "Task 1: Browse and Save",
@@ -734,6 +793,10 @@
         }
       };
 
+      /*
+        Runtime state tracks the selected test condition, visible results,
+        active study record, viewport observer, and scroll direction.
+      */
       const state = {
         pattern: "pagination",
         task: "find",
@@ -745,9 +808,15 @@
         lastDirection: null
       };
 
+      /* Convenience DOM-query helpers used throughout the prototype. */
       const $ = (selector) => document.querySelector(selector);
       const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
+      /**
+       * Escapes dynamic values before inserting them into HTML templates.
+       * @param {*} value Value to convert to safe display text.
+       * @returns {string} HTML-safe string.
+       */
       function escapeHtml(value) {
         return String(value)
           .replaceAll("&", "&amp;")
@@ -757,14 +826,20 @@
           .replaceAll("'", "&#039;");
       }
 
+      /** Returns the current time in a consistent ISO 8601 export format. */
       function nowISO() {
         return new Date().toISOString();
       }
 
+      /**
+       * Calculates elapsed seconds between two ISO date strings.
+       * @returns {string} Duration rounded to two decimal places.
+       */
       function secondsBetween(start, end) {
         return ((new Date(end) - new Date(start)) / 1000).toFixed(2);
       }
 
+      /* Read and write completed study records in the participant's browser. */
       function getRecords() {
         return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
       }
@@ -773,8 +848,13 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
       }
 
+      /* --------------------------------------------------------------------
+         Export schema and record normalization
+         -------------------------------------------------------------------- */
+
       const EXPORT_SCHEMA_VERSION = "live-demo-v6-no-ratings-no-notes";
 
+      // CSV column order remains explicit for consistent analysis imports.
       const EXPORT_COLUMNS = [
         "schemaVersion", "sessionId", "participantId", "pattern", "patternLabel", "task", "taskLabel", "targetTitle",
         "startTimeISO", "endTimeISO", "durationSeconds", "success", "failureReason",
@@ -784,12 +864,17 @@
         "resultIdsViewed", "savedResultIds"
       ];
 
+      /** Converts legacy or serialized list values into arrays. */
       function cleanArray(value) {
         if (Array.isArray(value)) return value;
         if (value === undefined || value === null || value === "") return [];
         return String(value).split("|").filter(Boolean);
       }
 
+      /**
+       * Normalizes saved records so CSV and JSON exports use stable defaults,
+       * data types, labels, and schema fields.
+       */
       function normalizeRecordForExport(record) {
         return {
           schemaVersion: EXPORT_SCHEMA_VERSION,
@@ -827,6 +912,7 @@
         };
       }
 
+      /** Selects only the ordered fields included in the CSV export. */
       function exportRecordForCsv(record) {
         const normalized = normalizeRecordForExport(record);
         return EXPORT_COLUMNS.reduce((row, column) => {
@@ -835,6 +921,10 @@
         }, {});
       }
 
+      /**
+       * Creates a new in-memory record for the selected participant, pattern,
+       * and task. All calculated interaction metrics begin at zero.
+       */
       function makeRecord() {
         const task = taskInfo[state.task];
 
@@ -873,14 +963,21 @@
         };
       }
 
+      /** Adds a timestamped event to the active record when a task is running. */
       function logEvent(type, data = {}) {
         if (!state.active) return;
         state.active.eventLog.push({ timeISO: nowISO(), type, data });
       }
 
+      /* --------------------------------------------------------------------
+         Interface construction and rendering
+         -------------------------------------------------------------------- */
+
+      /** Builds the static controls, simulated search header, and result areas. */
       function buildApp() {
         $("#app").innerHTML = `
       <div class="app">
+        <!-- Observer controls: study setup, task instructions, and exports. -->
         <aside class="sidebar">
           <div class="brand">
             <h1>Infinite Scroll Study</h1>
@@ -935,6 +1032,7 @@
           </section>
         </aside>
 
+        <!-- Participant-facing simulated search-results interface. -->
         <main class="main">
           <div class="top-search-area">
             <div class="search-row">
@@ -988,6 +1086,7 @@
     `;
       }
 
+      /** Displays task instructions and live task-specific progress messages. */
       function renderTaskBox() {
         const task = taskInfo[state.task];
 
@@ -1016,12 +1115,14 @@
     `;
       }
 
+      /** Updates the text and color of the current task-status indicator. */
       function setStatus(text, mode) {
         $("#statusText").textContent = text;
         $("#statusDot").className = "status-dot";
         if (mode) $("#statusDot").classList.add(mode);
       }
 
+      /** Returns the result subset visible under the selected navigation pattern. */
       function visibleItems() {
         if (state.pattern === "pagination") {
           const start = (state.page - 1) * BATCH_SIZE;
@@ -1030,6 +1131,7 @@
         return items.slice(0, state.visibleCount);
       }
 
+      /** Refreshes all result-dependent interface areas and calculated metrics. */
       function render() {
         renderResults();
         renderNavigation();
@@ -1038,6 +1140,7 @@
         updateMetrics();
       }
 
+      /** Renders the controlled result set and binds open/save interactions. */
       function renderResults() {
         const current = visibleItems();
         const total = items.length;
@@ -1083,6 +1186,7 @@
         });
       }
 
+      /** Renders and binds controls for the selected navigation pattern. */
       function renderNavigation() {
         const nav = $("#navigationArea");
         nav.innerHTML = "";
@@ -1155,6 +1259,14 @@
         }
       }
 
+      /* --------------------------------------------------------------------
+         Interaction observation and task evaluation
+         -------------------------------------------------------------------- */
+
+      /**
+       * Observes results that are at least 55% visible. This produces a more
+       * meaningful viewed-result count than merely counting rendered items.
+       */
       function setupObserver() {
         if (state.observer) state.observer.disconnect();
         state.observer = new IntersectionObserver(entries => {
@@ -1168,6 +1280,10 @@
         $$(".observed-result").forEach(item => state.observer.observe(item));
       }
 
+      /**
+       * Records each result once per task and updates the return-task progress
+       * after the participant has first opened its target result.
+       */
       function recordViewed(id) {
         if (!state.active) return;
 
@@ -1191,6 +1307,7 @@
         }
       }
 
+      /** Records an opened result and applies task-specific target rules. */
       function openResult(item) {
         if (!item) return;
 
@@ -1242,6 +1359,7 @@
         updateMetrics();
       }
 
+      /** Saves a result once per active task and refreshes its button state. */
       function saveResult(id) {
         if (!state.active) {
           alert("Start a task first.");
@@ -1257,6 +1375,7 @@
         render();
       }
 
+      /** Displays a simulated detail page without navigating away from the study. */
       function showModal(item, message = "") {
         $("#modalRoot").innerHTML = `
       <div class="modal-backdrop">
@@ -1274,6 +1393,11 @@
         $("#closeModalBtn").addEventListener("click", () => $("#modalRoot").innerHTML = "");
       }
 
+      /* --------------------------------------------------------------------
+         Study-session lifecycle and metric calculations
+         -------------------------------------------------------------------- */
+
+      /** Validates setup input, resets navigation, and starts a new task record. */
       function startTask() {
         const participant = $("#participantId").value.trim();
 
@@ -1300,6 +1424,10 @@
         updateMetrics();
       }
 
+      /**
+       * Finalizes the active task, calculates duration and stopping location,
+       * then persists the completed record in localStorage.
+       */
       function completeTask(success = true, reason = "") {
         if (!state.active) {
           alert("No active task is running.");
@@ -1340,6 +1468,7 @@
         updateProgress();
       }
 
+      /** Prompts the observer for a reason and records an unsuccessful task. */
       function failTask() {
         if (!state.active) {
           alert("No active task is running.");
@@ -1350,6 +1479,7 @@
         completeTask(false, reason || "Marked as failure by observer.");
       }
 
+      /** Describes where the participant stopped within the selected pattern. */
       function getStopLocation() {
         if (state.pattern === "pagination") return "Page " + state.page;
         return "Visible results: " + state.visibleCount;
@@ -1359,6 +1489,7 @@
         renderTaskBox();
       }
 
+      /** Updates hidden live metrics; recorded values remain available in exports. */
       function updateMetrics() {
         if (!state.active) {
           $("#timeMetric").textContent = "0.0s";
@@ -1374,6 +1505,10 @@
         $("#errorMetric").textContent = state.active.wrongOpens;
       }
 
+      /**
+       * Calculates total scroll distance, direction changes, and maximum depth.
+       * It also triggers the next batch for the infinite-scroll condition.
+       */
       function handleScroll() {
         if (state.active) {
           const y = window.scrollY;
@@ -1409,6 +1544,11 @@
         }
       }
 
+      /* --------------------------------------------------------------------
+         Data export and saved-record display
+         -------------------------------------------------------------------- */
+
+      /** Converts normalized records into RFC 4180-style quoted CSV rows. */
       function recordsToCsv(records) {
         const rows = records.map(record => {
           const cleaned = exportRecordForCsv(record);
@@ -1422,6 +1562,7 @@
         return [EXPORT_COLUMNS.join(","), ...rows].join("\n");
       }
 
+      /** Creates a temporary object URL and starts a browser file download. */
       function downloadFile(filename, text, type) {
         const blob = new Blob([text], { type });
         const url = URL.createObjectURL(blob);
@@ -1434,6 +1575,7 @@
         URL.revokeObjectURL(url);
       }
 
+      /** Exports all saved study records using the fixed CSV column order. */
       function exportCsv() {
         const records = getRecords();
         if (!records.length) {
@@ -1444,6 +1586,7 @@
         downloadFile("google_style_interaction_study_data.csv", recordsToCsv(records), "text/csv");
       }
 
+      /** Exports normalized records and schema metadata as formatted JSON. */
       function exportJson() {
         const records = getRecords();
         if (!records.length) {
@@ -1461,6 +1604,7 @@
         downloadFile("google_style_interaction_study_data.json", JSON.stringify(exportData, null, 2), "application/json");
       }
 
+      /** Renders a compact observer-facing summary of completed records. */
       function renderRecords() {
         const records = getRecords().map(normalizeRecordForExport);
 
@@ -1505,6 +1649,11 @@
     `;
       }
 
+      /* --------------------------------------------------------------------
+         Event binding and application startup
+         -------------------------------------------------------------------- */
+
+      /** Connects form controls, task actions, exports, and scroll tracking. */
       function bindEvents() {
         $("#patternSelect").addEventListener("change", event => {
           state.pattern = event.target.value;
@@ -1550,6 +1699,7 @@
         setInterval(updateMetrics, 300);
       }
 
+      /** Builds the interface and establishes its initial state. */
       function init() {
         buildApp();
         bindEvents();
@@ -1559,6 +1709,7 @@
         setStatus("Not started", "");
       }
 
+      // Initialize safely whether the script runs before or after DOM readiness.
       if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", init);
       } else {
